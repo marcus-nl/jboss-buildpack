@@ -25,12 +25,13 @@ module JavaBuildpack
 
     # Encapsulates the detect, compile, and release functionality for applications running
     # JBoss applications.
-    class Jboss < JavaBuildpack::Component::VersionedDependencyComponent
+    class Galleon < JavaBuildpack::Component::VersionedDependencyComponent
+      include JavaBuildpack::Util
 
       # (see JavaBuildpack::Component::BaseComponent#compile)
       def compile
-        download_tar
-        update_configuration
+        download_zip
+        provision_wildfly
         copy_application
         copy_additional_libraries
         create_dodeploy
@@ -48,7 +49,7 @@ module JavaBuildpack
           @droplet.environment_variables.as_env_vars,
           @droplet.java_home.as_env_var,
           'exec',
-          "$PWD/#{(@droplet.sandbox + 'bin/standalone.sh').relative_path_from(@droplet.root)}",
+          "$PWD/#{(wildfly_dir + 'bin/standalone.sh').relative_path_from(@droplet.root)}",
           '-b',
           '0.0.0.0'
         ].compact.join(' ')
@@ -58,45 +59,53 @@ module JavaBuildpack
 
       # (see JavaBuildpack::Component::VersionedDependencyComponent#supports?)
       def supports?
-        web_inf? && !JavaBuildpack::Util::JavaMainUtils.main_class(@application)
+        provision_xml.exist? && !JavaBuildpack::Util::JavaMainUtils.main_class(@application)
       end
 
       private
 
+      def provision_wildfly
+        galleon_sh = @droplet.sandbox + 'bin/galleon.sh'
+        cmd = [
+          "JAVA_HOME=#{@droplet.java_home.root}",
+          'exec',
+          galleon_sh,
+          'provision',
+          provision_xml,
+          "--dir=#{wildfly_dir}"
+        ].flatten.compact.join(' ')
+        shell cmd
+      end
+
       def copy_application
-        FileUtils.mkdir_p root
-        @application.root.children.each { |child| FileUtils.cp_r child, root }
+        FileUtils.mkdir_p root_dir
+        @application.root.children.each { |child| FileUtils.cp_r child, root_dir }
       end
 
       def copy_additional_libraries
-        web_inf_lib = root + 'WEB-INF/lib'
+        web_inf_lib = root_dir + 'WEB-INF/lib'
+        FileUtils.mkdir_p web_inf_lib
         @droplet.additional_libraries.each { |additional_library| FileUtils.cp_r additional_library, web_inf_lib }
       end
 
       def create_dodeploy
-        FileUtils.touch(webapps + 'ROOT.war.dodeploy')
+        FileUtils.touch(webapps_dir + 'ROOT.war.dodeploy')
       end
 
-      def root
-        webapps + 'ROOT.war'
+      def root_dir
+        webapps_dir + 'ROOT.war'
       end
 
-      def update_configuration
-        standalone_config = @droplet.sandbox + 'standalone/configuration/standalone.xml'
-
-        modified = standalone_config.read
-                                    .gsub(%r{<location name="/" handler="welcome-content"/>},
-                                          '<!-- <location name="/" handler="welcome-content"/> -->')
-
-        standalone_config.open('w') { |f| f.write modified }
+      def webapps_dir
+        wildfly_dir + 'standalone/deployments'
       end
 
-      def webapps
-        @droplet.sandbox + 'standalone/deployments'
+      def wildfly_dir
+        @droplet.sandbox + 'wildfly'
       end
 
-      def web_inf?
-        (@application.root + 'WEB-INF').exist?
+      def provision_xml
+        @application.root + 'WEB-INF/provisioning.xml'
       end
 
     end
