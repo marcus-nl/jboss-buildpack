@@ -93,6 +93,7 @@ module Package
       'spring_boot_cli' => 'Spring Boot CLI',
       'takipi_agent' => 'Takipi Agent',
       'tomcat' => 'Tomcat',
+      'wildfly_custom' => 'Custom Wildfly distro',
       'your_kit_profiler' => 'YourKit Profiler'
     }.freeze
 

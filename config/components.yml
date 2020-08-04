@@ -26,6 +26,7 @@ containers:
   - "JavaBuildpack::Container::SpringBoot"
   - "JavaBuildpack::Container::SpringBootCLI"
 #  - "JavaBuildpack::Container::Tomcat"
+  - "JavaBuildpack::Container::WildflyCustom"
 
 # List of available JREs. In order to use a different one either comment out the OpenJDK line and uncomment the desired one or use environment variables to change this configuration.
 # Example: cf set-env JBP_CONFIG_COMPONENTS '{jres: ["JavaBuildpack::Jre::OpenJdkJRE"]}'
